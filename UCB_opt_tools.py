@@ -1,3 +1,7 @@
+import numpy as np
+from sklearn.gaussian_process import GaussianProcessRegressor
+
+
 def UCB_opt(X_trn, y_trn, X_pred, num_std=1, **gpr_kwargs):
     ''' Function for identifying the optimal upper-confidence bound
         Inputs:
