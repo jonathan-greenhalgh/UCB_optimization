@@ -50,8 +50,10 @@ def UCB_batch_mode(X_trn, y_trn, X_pred, batchsize, num_std=1, **gpr_kwargs):
         **gpr_kwargs - kwargs that feed into GuassianProcessRegressor (such as kernel, alpha, etc.)
         
         Outputs:
-        X_trn_batch - feature encoding for the samples with the maximum UCB 
-        y_trn_batch - the mean predicted values corresponding to the maximum UCB
+        X_top_batch - feature encoding for the samples with the maximum UCB 
+        y_top_batch - the mean predicted values corresponding to the maximum UCB
+        X_preds - encodings for all samples in prediction space
+        y_preds - mean predictions 
         std_preds - confidence intervals for the prediction corresponding to the maximum UCB
         UCB_opt_ind_batch - list of indices that are batch-mode UCB optima for a given round
      
@@ -60,22 +62,24 @@ def UCB_batch_mode(X_trn, y_trn, X_pred, batchsize, num_std=1, **gpr_kwargs):
     # Initialize variables 
     batch = 1 # counter
     X_trn_batch = np.array(X_trn)   # training set features
-    y_trn_batch = list(y_trn)       # training set labels 
-    # std_pred_batch = [0 for i in y_trn_batch] # set the confidence intervals equal to zero for known measurements 
-    # std_pred_batch = [] 
+    y_trn_batch = list( np.log(y_trn))       # training set labels 
     X_pred_batch = np.array(X_pred) # prediction set 
 
     UCB_opt_ind_batch = [] # batch-mode UCB optima
-    
+    X_top_batch = [] 
+    y_top_batch = [] 
+
     while batch <= batchsize:
         # Optimize the UCB 
         X_top_pred, y_pred_opt, y_preds, std_preds, UCB_opt_ind = UCB_opt(X_trn_batch, y_trn_batch, X_pred_batch, num_std=num_std, **gpr_kwargs)
 
-        # print(std_preds)
+        # Add the top prediction to the batch
+        X_top_batch.append(X_top_pred)
+        y_top_batch.append(y_pred_opt)
+
+
         # Add a psuedo-measurement to the training data by assuming that the predicted value for the UCB optimum will become the new observed value
-        # Update the labels with the pseudo-measurement
         y_trn_batch.append(y_pred_opt)
-        # std_pred_batch = std_pred_batch.append(std_preds)
 
         # Update the the feature list with the pseudo-measurement features
         X_trn_batch = np.vstack([X_trn_batch, X_top_pred])
@@ -83,12 +87,32 @@ def UCB_batch_mode(X_trn, y_trn, X_pred, batchsize, num_std=1, **gpr_kwargs):
         # Update the batch-mode list
         UCB_opt_ind_batch.append(UCB_opt_ind)
     
-
-
         # Update the counter
         batch += 1
 
-    return X_trn_batch, y_trn_batch, UCB_opt_ind_batch
+
+    if len(UCB_opt_ind_batch) != len(set(UCB_opt_ind_batch)):
+        print('Warning: local optimum in batch')
+
+        # Combine X_top_batch and y_top_batch into a dataframe 
+        df_Xy = pd.DataFrame(X_top_batch)
+        df_Xy['y'] = y_top_batch
+
+        # Remove duplicates 
+        df_Xy = df_Xy.drop_duplicates(subset = df_Xy.columns != 'y')
+        print(f'Removed {batchsize-len(df_Xy)} duplicates')
+
+        # Reassign X_top_batch and y_top_batch 
+        X_top_batch = df_Xy.loc[:, df_Xy.columns != 'y'].to_numpy()
+        y_top_batch = list(df_Xy['y'])
+
+        UCB_opt_ind_batch = list(set(UCB_opt_ind_batch))
+
+    X_preds = X_pred_batch
+
+    # return X_trn_batch, y_trn_batch, X_preds, y_preds, std_preds, UCB_opt_ind_batch
+    return X_top_batch, y_top_batch, X_preds, y_preds, std_preds, UCB_opt_ind_batch
+
     
 
 
