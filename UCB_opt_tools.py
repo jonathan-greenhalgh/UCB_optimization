@@ -5,33 +5,36 @@ from sklearn.utils.validation import check_is_fitted
 
 
 
-class get_UCB(BaseEstimator, TransformerMixin):
-    def __init__(self, X_trn, y_trn):
-        self.X_trn = X_trn
-        self.y_trn = y_trn
-    
-    def fit(self, **gpr_kwargs):
+class GetUCB(BaseEstimator, TransformerMixin):
+    def __init__(self, num_stds = 1, return_std=True, **gpr_kwargs):
         #Initialize GPR
-        gpr = GaussianProcessRegressor(**gpr_kwargs)
+        self.gpr = GaussianProcessRegressor(**gpr_kwargs)
+        self.num_stds = num_stds
+        self.return_std = return_std
+
+    
+    def fit(self, X, y,  **gpr_kwargs):
+
+        self.X = X
+        self.y = y
+
+        return self
+    
+    def transform(self, X_pred):
 
         #Fit the GPR
-        self.fit_ = gpr.fit(self.X_trn, self.y_trn)
+        self.X_pred = X_pred
+        self.fit_ = self.gpr.fit(self.X, self.y)
 
-        return self
-    
-    def transform(self, X, num_stds = 1, return_std=True):
+        self.y_preds, self.std_preds = self.fit_.predict(X_pred, return_std=self.return_std)
 
-        check_is_fitted('fit_')
+        self.UCB = self.y_preds + self.num_stds*self.std_preds
 
-        self.y_preds, self.std_preds = self.fit_.predict(X, return_std=return_std)
+        self.opt_ind = self.UCB.argmax()
+        self.y_pred_opt = list(self.y_preds)[self.opt_ind]
+        self.x_pred_opt = np.array(self.X_pred)[self.opt_ind]
 
-        self.UCB = self.y_preds + num_stds*self.std_preds
-
-        self.UCB_opt_ind = self.UCB.argmax()
-        self.y_pred_opt = list(self.ypreds)[self.UCB_opt_ind]
-        self.x_pred_opt = np.array(X)[self.UCB_opt_ind]
-
-        return self
+        return self.UCB
 
 
 
@@ -60,7 +63,7 @@ class get_UCB(BaseEstimator, TransformerMixin):
 #         X_pred_opt - feature encoding for the sample with the maximum UCB 
 #         y_pred_opt - the mean predicted value corresponding to the maximum UCB
 #         std_preds - confidence interval for the prediction corresponding to the maximum UCB
-#         UCB_opt_ind - the row index in X_pred corresponding to the maximum UCB 
+#         opt_ind - the row index in X_pred corresponding to the maximum UCB 
 #         '''
 
 #     # Intialize the Gaussian Process Regressor
@@ -73,14 +76,14 @@ class get_UCB(BaseEstimator, TransformerMixin):
 #     UCB = y_preds + num_std*std_preds
 
 #     # Find the index of the UCB optimum
-#     UCB_opt_ind = UCB.argmax()
+#     opt_ind = UCB.argmax()
 
 #     # Find the mean of the prediction corresponding to the UCB optimum
-#     y_pred_opt = list(y_preds)[UCB_opt_ind]
-#     X_pred_opt = np.array(X_pred)[UCB_opt_ind]
+#     y_pred_opt = list(y_preds)[opt_ind]
+#     X_pred_opt = np.array(X_pred)[opt_ind]
 
     
-#     return X_pred_opt, y_pred_opt, y_preds, std_preds, UCB_opt_ind
+#     return X_pred_opt, y_pred_opt, y_preds, std_preds, opt_ind
 
   
 # def UCB_batch_mode(X_trn, y_trn, X_pred, batchsize, num_std=1, **gpr_kwargs):
@@ -116,7 +119,7 @@ class get_UCB(BaseEstimator, TransformerMixin):
 
 #     while batch <= batchsize:
 #         # Optimize the UCB 
-#         X_top_pred, y_pred_opt, y_preds, std_preds, UCB_opt_ind = UCB_opt(X_trn_batch, y_trn_batch, X_pred_batch, num_std=num_std, **gpr_kwargs)
+#         X_top_pred, y_pred_opt, y_preds, std_preds, opt_ind = UCB_opt(X_trn_batch, y_trn_batch, X_pred_batch, num_std=num_std, **gpr_kwargs)
 
 #         # Add the top prediction to the batch
 #         X_top_batch.append(X_top_pred)
@@ -130,7 +133,7 @@ class get_UCB(BaseEstimator, TransformerMixin):
 #         X_trn_batch = np.vstack([X_trn_batch, X_top_pred])
 
 #         # Update the batch-mode list
-#         UCB_opt_ind_batch.append(UCB_opt_ind)
+#         UCB_opt_ind_batch.append(opt_ind)
     
 #         # Update the counter
 #         batch += 1
