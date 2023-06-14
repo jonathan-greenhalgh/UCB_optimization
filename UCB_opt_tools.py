@@ -6,14 +6,21 @@ from sklearn.utils.validation import check_is_fitted
 
 
 class GetUCB(BaseEstimator, TransformerMixin):
-    def __init__(self, num_stds = 1, return_std=True, **gpr_kwargs):
+    '''A scikit-learn style class for training GPR models to determine Upper Confidence Bounds (UCB)'''
+    def __init__(self, num_stds = 1, **gpr_kwargs):
+        ''' Inputs:
+            num_std - number of standard deviations to use as a multiplier in upper-confidence bound estimation. Default: 1
+            **gpr_kwargs - kwargs that feed into GuassianProcessRegressor (such as kernel, alpha, etc.)
+            '''
         #Initialize GPR
         self.gpr = GaussianProcessRegressor(**gpr_kwargs)
         self.num_stds = num_stds
-        self.return_std = return_std
 
     
     def fit(self, X, y,  **gpr_kwargs):
+        ''' Inputs:
+            X - array of features for training the GP regressor. Row order must correlate with y_trn
+#           y - series or vector containing the labels for the GP regressor. Row order must correlate with X_trn'''
 
         self.X = X
         self.y = y
@@ -21,15 +28,22 @@ class GetUCB(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, X_pred):
-
-        #Fit the GPR
+        '''Transformation function for calculating UCB
+            
+            Inputs:
+            X_pred - array of features to be used for prediction'''
+        
         self.X_pred = X_pred
+
+        # Fit the regression model
         self.fit_ = self.gpr.fit(self.X, self.y)
 
-        self.y_preds, self.std_preds = self.fit_.predict(X_pred, return_std=self.return_std)
+        self.y_preds, self.std_preds = self.fit_.predict(X_pred, return_std=True)
 
+        # Calculate the UCB 
         self.UCB = self.y_preds + self.num_stds*self.std_preds
 
+        # Find the index corresponding to the max UCB
         self.opt_ind = self.UCB.argmax()
         self.y_pred_opt = list(self.y_preds)[self.opt_ind]
         self.x_pred_opt = np.array(self.X_pred)[self.opt_ind]
