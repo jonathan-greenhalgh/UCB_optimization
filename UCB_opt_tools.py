@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd 
+
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.base import BaseEstimator, TransformerMixin 
 from sklearn.utils.validation import check_is_fitted
@@ -65,13 +67,16 @@ class GetUCB(BaseEstimator, TransformerMixin):
         UCB_opt_ind_batch = []
         X_top_batch = [] 
         y_top_batch = []
+        UCB_top_batch = [] 
 
         while batch <= batch_size:
-            # Optimize the UCB 
+            # Fit the UCB optimizer
             self.fit(X_trn_batch, y_trn_batch).transform(X_pred_batch)
+            
+            # Append the label, predictions and UCB to lists
             X_top_batch.append(self.x_pred_opt)
             y_top_batch.append(self.y_pred_opt) 
-
+            UCB_top_batch.append(self.UCB)
 
             # Add psuedo-measurement to the training data 
             y_trn_batch.append(self.y_pred_opt)
@@ -88,25 +93,25 @@ class GetUCB(BaseEstimator, TransformerMixin):
         if len(UCB_opt_ind_batch) != len(set(UCB_opt_ind_batch)):
             print('Warning: local optimum in batch')
 
-            # Combine X_top_batch and y_top_batch into a dataframe 
-            df_Xy = pd.DataFrame(X_top_batch)
-            df_Xy['y'] = y_top_batch
+            # Combine X_top_batch, y_top_batch, and UCB into a dataframe 
+            df = pd.DataFrame(X_top_batch)
+            df['y'] = y_top_batch
 
             # Remove duplicates 
-            df_Xy = df_Xy.drop_duplicates(subset = df_Xy.columns != 'y')
-            print(f'Removed {batch_size-len(df_Xy)} duplicates')
+            df = df.drop_duplicates(subset = df.columns != 'y')
+            print(f'Removed {batch_size-len(df)} duplicates')
 
             # Reassign X_top_batch and y_top_batch 
-            X_top_batch = df_Xy.loc[:, df_Xy.columns != 'y'].to_numpy()
-            y_top_batch = list(df_Xy['y'])
+            X_top_batch = df.loc[:, df.columns != 'y'].to_numpy()
+            y_top_batch = list(df['y'])
 
             UCB_opt_ind_batch = list(set(UCB_opt_ind_batch))
-
-
 
         self.X_batch = X_top_batch
         self.y_batch = y_top_batch
         self.UCB_opt_inds_batch = UCB_opt_ind_batch
+        self.UCB_batch = UCB_top_batch
+        self.X_preds = X_pred_batch
 
         return self
 
