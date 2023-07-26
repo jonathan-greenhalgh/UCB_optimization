@@ -49,6 +49,7 @@ class GetUCB(BaseEstimator, TransformerMixin):
         self.opt_ind = self.UCB.argmax()
         self.y_pred_opt = list(self.y_preds)[self.opt_ind]
         self.x_pred_opt = np.array(self.X_pred)[self.opt_ind]
+        self.std_pred_opt = np.array(self.std_preds)[self.opt_ind]
 
         return self.UCB
 
@@ -65,6 +66,7 @@ class GetUCB(BaseEstimator, TransformerMixin):
         X_pred_batch = np.array(X_pred_initial)
 
         UCB_opt_ind_batch = []
+        std_top_batch = []
         X_top_batch = [] 
         y_top_batch = []
         UCB_top_batch = [] 
@@ -76,6 +78,7 @@ class GetUCB(BaseEstimator, TransformerMixin):
             # Append the label, predictions and UCB to lists
             X_top_batch.append(self.x_pred_opt)
             y_top_batch.append(self.y_pred_opt) 
+            std_top_batch.append(self.std_pred_opt)
             UCB_top_batch.append(self.UCB)
 
             # Add psuedo-measurement to the training data 
@@ -109,9 +112,12 @@ class GetUCB(BaseEstimator, TransformerMixin):
 
         self.X_batch = X_top_batch
         self.y_batch = y_top_batch
+        self.std_batch = std_top_batch
         self.UCB_opt_inds_batch = UCB_opt_ind_batch
         self.UCB_batch = UCB_top_batch
         self.X_preds = X_pred_batch
+        self.y_preds_batch = self.y_preds
+        self.std_preds_batch = self.std_preds
 
         return self
 
