@@ -19,6 +19,17 @@ This code has been tested using the specified version of the following packages:
 * seaborn 0.11.1
 * scikit-learn 0.24.1
 
+# Quick start guide: 
+* Place UCB_opt_tools.py in the same path as the file you are implementing it
+* Perform any preprocessing (scaling, encoding). You'll need a feature array (X_trn) and a labels vector (y_trn) for training and a feature array for making predictionis (X_pred)
+* Initialize the model by running: 
+''' 
+ucb = GetUCB() # Initialize 
+ucb.fit(X_trn, y_trn).transform(X_pred) # Fit and make predictions 
+
+''' 
+* 
+
   
 
 
